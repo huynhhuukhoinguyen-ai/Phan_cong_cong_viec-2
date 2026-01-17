@@ -1,0 +1,153 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import os
+
+# ===== CỬA SỔ CHÍNH =====
+root = tk.Tk()
+root.title("Bảng phân công công việc")
+root.geometry("1050x420")
+
+# ===== BẢNG =====
+columns = ("congviec", "thanhvien", "deadline", "ghichu", "tiendo", "link")
+tree = ttk.Treeview(root, columns=columns, show="headings")
+
+tree.heading("congviec", text="Công việc")
+tree.heading("thanhvien", text="Tên thành viên")
+tree.heading("deadline", text="Deadline")
+tree.heading("ghichu", text="Ghi chú")
+tree.heading("tiendo", text="Tiến độ")
+tree.heading("link", text="Link bài")
+
+tree.column("congviec", width=150)
+tree.column("thanhvien", width=260)
+tree.column("deadline", width=120)
+tree.column("ghichu", width=120)
+tree.column("tiendo", width=140)
+tree.column("link", width=100)
+
+tree.pack(fill="both", expand=True)
+
+# ===== DỮ LIỆU =====
+data_full = [
+    {
+        "congviec": "Bài thuyết trình",
+        "thanhvien": "Nguyên\nTrần Kiều Oanh\nĐào Phương Như\nVõ Tấn Quý",
+        "deadline": "22h 20/01",
+        "ghichu": "Nội dung chi tiết bài thuyết trình",
+        "tiendo": "Đang làm",
+        "link": "bai_thuyet_trinh.docx"
+    },
+    {
+        "congviec": "Bài kiểm tra số 1",
+        "thanhvien": "Nguyễn Xuân Quỳnh\nDương Thiên Phát",
+        "deadline": "22h 20/01",
+        "ghichu": "Nội dung chi tiết bài kiểm tra số 1",
+        "tiendo": "Đang làm",
+        "link": "bai_kiem_tra_1.docx"
+    },
+    {
+        "congviec": "Bài kiểm tra giữa kỳ",
+        "thanhvien": "Thành Nhân\nDương Anh Phương",
+        "deadline": "22h 22/01",
+        "ghichu": "Nội dung chi tiết bài kiểm tra giữa kỳ",
+        "tiendo": "Đang làm",
+        "link": "bai_giua_ky.docx"
+    },
+    {
+        "congviec": "Bài thu hoạch",
+        "thanhvien": "Nguyễn Ngọc Lan Nhi\nNguyễn Như Quỳnh\nNgụy Triệu Phát",
+        "deadline": "22h 28/01",
+        "ghichu": "Nội dung chi tiết bài thu hoạch",
+        "tiendo": "Đang làm",
+        "link": "bai_thu_hoach.docx"
+    }
+]
+
+# ===== ĐỔ DỮ LIỆU VÀO BẢNG =====
+for item in data_full:
+    short_member = item["thanhvien"].split("\n")[0] + ", ..."
+    tree.insert(
+        "",
+        tk.END,
+        values=(
+            item["congviec"],
+            short_member,
+            item["deadline"],
+            "Xem chi tiết",
+            item["tiendo"],
+            "Mở file"
+        )
+    )
+
+# ===== MỞ FILE WORD =====
+def open_file(path):
+    if os.path.exists(path):
+        os.startfile(path)
+    else:
+        messagebox.showerror("Lỗi", "Không tìm thấy file Word")
+
+# ===== POPUP CHI TIẾT =====
+def show_detail(event):
+    selected = tree.selection()
+    if not selected:
+        return
+
+    index = tree.index(selected[0])
+    item = data_full[index]
+
+    detail = tk.Toplevel(root)
+    detail.title("Chi tiết công việc")
+    detail.geometry("460x380")
+
+    tk.Label(detail, text="Công việc:", font=("Arial", 11, "bold")).pack(anchor="w", padx=10)
+    tk.Label(detail, text=item["congviec"]).pack(anchor="w", padx=20)
+
+    tk.Label(detail, text="\nThành viên:", font=("Arial", 11, "bold")).pack(anchor="w", padx=10)
+    tk.Label(detail, text=item["thanhvien"], justify="left").pack(anchor="w", padx=20)
+
+    tk.Label(detail, text="\nDeadline:", font=("Arial", 11, "bold")).pack(anchor="w", padx=10)
+    tk.Label(detail, text=item["deadline"]).pack(anchor="w", padx=20)
+
+    tk.Label(detail, text="\nGhi chú chi tiết:", font=("Arial", 11, "bold")).pack(anchor="w", padx=10)
+    note = tk.Text(detail, height=4, wrap="word")
+    note.pack(fill="x", padx=20)
+    note.insert("1.0", item["ghichu"])
+
+    tk.Button(
+        detail,
+        text="Mở bài làm (Word)",
+        command=lambda: open_file(item["link"])
+    ).pack(pady=10)
+
+# ===== MENU ĐỔI TRẠNG THÁI =====
+menu = tk.Menu(root, tearoff=0)
+current_item = {"row": None}
+
+def set_status(status):
+    row = current_item["row"]
+    if row is None:
+        return
+    index = tree.index(row)
+    data_full[index]["tiendo"] = status
+
+    values = list(tree.item(row, "values"))
+    values[4] = status
+    tree.item(row, values=values)
+
+def show_status_menu(event):
+    row = tree.identify_row(event.y)
+    col = tree.identify_column(event.x)
+
+    # Cột Tiến độ là cột thứ 5 (#5)
+    if row and col == "#5":
+        current_item["row"] = row
+        menu.tk_popup(event.x_root, event.y_root)
+
+menu.add_command(label="🔄 Đang làm", command=lambda: set_status("Đang làm"))
+menu.add_command(label="✅ Đã hoàn thành", command=lambda: set_status("Đã hoàn thành"))
+
+# ===== BIND SỰ KIỆN =====
+tree.bind("<Double-1>", show_detail)     # double-click xem chi tiết
+tree.bind("<Button-3>", show_status_menu)  # chuột phải đổi trạng thái
+
+root.mainloop()
